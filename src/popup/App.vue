@@ -2,21 +2,27 @@
   <div
     id="app"
     class="container"
+    ref="app"
     :class="containerClass"
-    :style="
-      diyContainer
-        ? { width: containerWidth + 'px', height: containerHeight + 'px' }
-        : ''
-    "
+    :style="[zoom, grayscale, opacity]"
   >
     <div>
-      <div class="tab-row">
+      <div
+        class="tab-row"
+        v-if="isGetStorage"
+        v-loading="loadingInd"
+        :element-loading-background="
+          darkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)'
+        "
+        :style="seciList.length > 0 ? { minHeight: '55px' } : {}"
+      >
         <div
           v-for="(el, index) in indFundData"
           :draggable="isEdit"
-          class="tab-col"
+          class="tab-col indFund"
           :class="drag"
           :key="el.f12"
+          @click.stop="!isEdit && indDetail(el)"
           @dragstart="handleDragStart($event, el)"
           @dragover.prevent="handleDragOver($event, el)"
           @dragenter="handleDragEnter($event, el, index)"
@@ -31,7 +37,18 @@
               >✖</span
             >
           </h5>
-          <p :class="el.f3 >= 0 ? 'up' : 'down'">{{ el.f2 }}</p>
+          <p :class="el.f3 >= 0 ? 'up' : 'down'">
+            {{ el.f2
+            }}<input
+              v-if="isEdit && BadgeContent == 3"
+              @click="sltInd(el)"
+              :class="el.f13 + '.' + el.f12 == RealtimeIndcode ? 'slt' : ''"
+              class="btn edit"
+              style="margin-left:5px"
+              value="✔"
+              type="button"
+            />
+          </p>
           <p :class="el.f3 >= 0 ? 'up' : 'down'">
             {{ el.f4 }}&nbsp;&nbsp;{{ el.f3 }}%
           </p>
@@ -108,7 +125,15 @@
       <p v-if="isEdit" class="tips center">
         部分新发基金或QDII基金可以搜索到，但可能无法获取估值情况
       </p>
-      <div class="table-row">
+      <div
+        v-if="isGetStorage"
+        v-loading="loadingList"
+        :element-loading-background="
+          darkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)'
+        "
+        class="table-row"
+        style="min-height:160px"
+      >
         <table :class="tableHeight">
           <thead>
             <tr>
@@ -185,7 +210,7 @@
               </td>
               <td v-if="isEdit">{{ el.fundcode }}</td>
               <td v-if="showGSZ && !isEdit">{{ el.gsz }}</td>
-              <td v-if="isEdit && showCost">
+              <td v-if="isEdit && (showCostRate || showCost)">
                 <input
                   class="btn num"
                   placeholder="持仓成本价"
@@ -195,9 +220,19 @@
                 />
               </td>
 
-              <td v-if="showAmount">{{parseFloat(el.amount).toLocaleString('zh') }}</td>
+              <td v-if="showAmount">
+                {{
+                  parseFloat(el.amount).toLocaleString("zh", {
+                    minimumFractionDigits: 2,
+                  })
+                }}
+              </td>
               <td v-if="showCost" :class="el.costGains >= 0 ? 'up' : 'down'">
-                {{ parseFloat(el.costGains).toLocaleString('zh') }}
+                {{
+                  parseFloat(el.costGains).toLocaleString("zh", {
+                    minimumFractionDigits: 2,
+                  })
+                }}
               </td>
               <td
                 v-if="showCostRate"
@@ -207,7 +242,11 @@
               </td>
               <td :class="el.gszzl >= 0 ? 'up' : 'down'">{{ el.gszzl }}%</td>
               <td v-if="showGains" :class="el.gains >= 0 ? 'up' : 'down'">
-                {{ parseFloat(el.gains).toLocaleString('zh') }}
+                {{
+                  parseFloat(el.gains).toLocaleString("zh", {
+                    minimumFractionDigits: 2,
+                  })
+                }}
               </td>
               <td v-if="!isEdit">
                 {{
@@ -244,13 +283,75 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- <table :class="tableHeight" class="detailTable">
+          <thead>
+            <tr>
+              <th class="align-left">
+                <div>基金名称</div>
+                <p>基金编码</p>
+              </th>
+              <th>
+                <div>持有收益率</div>
+                <p>持有收益</p>
+              </th>
+              <th>
+                <div>估算涨幅</div>
+                <p>估算收益</p>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(el, index) in dataList"
+              :key="el.fundcode"
+              :draggable="isEdit"
+              :class="drag"
+              @dragstart="handleDragStart($event, el)"
+              @dragover.prevent="handleDragOver($event, el)"
+              @dragenter="handleDragEnter($event, el, index)"
+              @dragend="handleDragEnd($event, el)"
+            >
+              <td
+                :class="
+                  isEdit ? 'fundName-noclick align-left' : 'fundName align-left'
+                "
+                :title="el.name"
+                @click.stop="!isEdit && fundDetail(el)"
+              >
+                <div>{{ el.name }}</div>
+                <p>{{ el.fundcode }}</p>
+              </td>
+              <td :class="el.costGains >= 0 ? 'up' : 'down'">
+                <div>{{ el.cost > 0 ? el.costGainsRate + "%" : "" }}</div>
+                <p>
+                  {{
+                  parseFloat(el.costGains).toLocaleString("zh", {
+                    minimumFractionDigits: 2,
+                  })
+                }}
+                </p>
+              </td>
+              <td :class="el.gszzl >= 0 ? 'up' : 'down'">
+                <div>{{ el.gszzl }}%</div>
+                <p>
+                  {{
+                    parseFloat(el.gains).toLocaleString("zh", {
+                      minimumFractionDigits: 2,
+                    })
+                  }}
+                </p>
+              </td>
+            </tr>
+          </tbody>
+        </table> -->
       </div>
     </div>
     <p v-if="isEdit" class="tips">
       特别关注功能介绍：指定一个基金，在程序图标中以角标的形式实时更新，请在设置中选择角标类型与内容。
     </p>
 
-    <div v-show="isEdit" class="input-row">
+    <div v-show="isEdit" class="input-row gear-input-row">
       <el-switch
         v-model="darkMode"
         @change="changeDarkMode"
@@ -260,11 +361,27 @@
         active-text="暗色模式"
       >
       </el-switch>
+      <span class="slider-title">界面灰度：</span>
+      <el-slider
+        class="slider"
+        v-model="grayscaleValue"
+        @change="changeGrayscaleValue"
+        :format-tooltip="formatTooltip"
+      ></el-slider>
+      <span class="slider-title">透明度：</span>
+      <el-slider
+        class="slider"
+        :max="90"
+        v-model="opacityValue"
+        @change="changeOpacityValue"
+        :format-tooltip="formatTooltip"
+      ></el-slider>
       <!-- <input v-model="containerWidth" type="number" />
       <input v-model="containerHeight" type="number" /> -->
     </div>
 
     <div class="input-row">
+      <input class="btn" type="button" @click="market" value="行情中心" />
       <input
         class="btn"
         v-if="isDuringDate"
@@ -282,7 +399,6 @@
         :value="isEdit ? '完成编辑' : '编辑'"
         @click="isEdit = !isEdit"
       />
-      <!-- <input class="btn" type="button" :value="isAdd ? '取消添加' : '添加'" @click="isAdd = !isAdd" /> -->
       <input class="btn" type="button" value="设置" @click="option" />
       <input class="btn" type="button" value="日志" @click="changelog" />
       <input
@@ -293,36 +409,58 @@
         @click="reward"
       />
     </div>
-    <div class="input-row">
+    <div class="input-row" v-if="showCost || showGains">
       <input
         v-if="showGains"
         class="btn"
-        :class="allGains >= 0 ? 'btn-up' : 'btn-down'"
+        :class="allGains[0] >= 0 ? 'btn-up' : 'btn-down'"
         type="button"
         :title="
-          allGains >= 0 ? 'd=====(￣▽￣*)b 赞一个' : '∑(っ°Д°;)っ 大事不好啦'
+          allGains[0] >= 0 ? 'd=====(￣▽￣*)b 赞一个' : '∑(っ°Д°;)っ 大事不好啦'
         "
-        :value="'当日收益：' + parseFloat(allGains).toLocaleString('zh')"
+        :value="
+          '日收益：' +
+            parseFloat(allGains[0]).toLocaleString('zh', {
+              minimumFractionDigits: 2,
+            }) +
+            (isNaN(allGains[1]) ? '' : '（' + allGains[1] + '%）')
+        "
       />
       <input
         v-if="showCost"
         class="btn"
-        :class="allCostGains >= 0 ? 'btn-up' : 'btn-down'"
+        :class="allCostGains[0] >= 0 ? 'btn-up' : 'btn-down'"
         type="button"
         :title="
-          allCostGains >= 0
+          allCostGains[0] >= 0
             ? 'd=====(￣▽￣*)b 赞一个'
             : '∑(っ°Д°;)っ 大事不好啦'
         "
-        :value="'总持有收益：' + parseFloat(allCostGains).toLocaleString('zh')"
+        :value="
+          '持有收益：' +
+            parseFloat(allCostGains[0]).toLocaleString('zh', {
+              minimumFractionDigits: 2,
+            }) +
+            (isNaN(allCostGains[1]) ? '' : '（' + allCostGains[1] + '%）')
+        "
       />
     </div>
-    <!-- <charts @close="closeCharts" ref="charts"></charts> -->
+    <div
+      class="refresh"
+      :class="{ isRefresh: isRefresh }"
+      title="手动刷新数据"
+      @click="refresh"
+    >
+      <i class="el-icon-refresh"></i>
+    </div>
+    <market :darkMode="darkMode" @close="closeCharts" ref="marketShadow"></market>
+    <ind-detail @close="closeCharts" :darkMode="darkMode" ref="indDetail">
+    </ind-detail>
     <fund-detail
       @close="closeCharts"
       :fund="sltFund"
       :darkMode="darkMode"
-      ref="charts"
+      ref="fundDetail"
     ></fund-detail>
     <reward @close="rewardShadow = false" ref="reward"></reward>
     <change-log
@@ -337,8 +475,10 @@
 <script>
 const { version } = require("../../package.json");
 import reward from "../common/reward";
+import indDetail from "../common/indDetail";
 import fundDetail from "../common/fundDetail";
 import changeLog from "../common/changeLog";
+import market from "../common/market";
 //防抖
 let timeout = null;
 function debounce(fn, wait = 700) {
@@ -350,7 +490,9 @@ export default {
   components: {
     reward,
     fundDetail,
+    indDetail,
     changeLog,
+    market,
   },
   data() {
     return {
@@ -361,6 +503,7 @@ export default {
       isLiveUpdate: false,
       isDuringDate: false,
       RealtimeFundcode: null,
+      RealtimeIndcode: null,
       dataList: [],
       myVar: null,
       myVar1: null,
@@ -431,103 +574,72 @@ export default {
       ],
       sltSeci: "",
       darkMode: false,
+      normalFontSize: false,
       diyContainer: false,
       containerWidth: 790,
       containerHeight: 590,
       detailShadow: false,
       changelogShadow: false,
       sltFund: {},
+      sltIndCode: "",
       localVersion: version,
       BadgeContent: 1,
       showBadge: 1,
       userId: null,
+      loadingInd: false,
+      loadingList: true,
+      isGetStorage: false,
+      zoom: {
+        zoom: 1,
+      },
+      grayscale: {},
+      grayscaleValue: 0,
+      opacity: {},
+      opacityValue: 0,
+      isRefresh: false,
+      marketShadow: false,
     };
   },
   mounted() {
-    chrome.storage.sync.get(
-      [
-        "RealtimeFundcode",
-        "fundListM",
-        "showAmount",
-        "showGains",
-        "fundList",
-        "seciList",
-        "darkMode",
-        "isLiveUpdate",
-        "showCost",
-        "showCostRate",
-        "showGSZ",
-        "version",
-        "showBadge",
-        "BadgeContent",
-        "userId",
-      ],
-      (res) => {
-        this.fundList = res.fundList ? res.fundList : this.fundList;
-        if (res.fundListM) {
-          this.fundListM = res.fundListM;
-        } else {
-          for (const fund of this.fundList) {
-            let val = {
-              code: fund,
-              num: 0,
-            };
-            this.fundListM.push(val);
-          }
-          chrome.storage.sync.set({
-            fundListM: this.fundListM,
-          });
-        }
-        if (res.userId) {
-          this.userId = res.userId;
-        } else {
-          this.userId = this.getGuid();
-          chrome.storage.sync.set({
-            userId: this.userId,
-          });
-        }
-        this.darkMode = res.darkMode ? res.darkMode : false;
-        this.seciList = res.seciList ? res.seciList : this.seciList;
-        this.showAmount = res.showAmount ? res.showAmount : false;
-        this.showGains = res.showGains ? res.showGains : false;
-        this.RealtimeFundcode = res.RealtimeFundcode;
-        this.isLiveUpdate = res.isLiveUpdate ? res.isLiveUpdate : false;
-        this.showCost = res.showCost ? res.showCost : false;
-        this.showCostRate = res.showCostRate ? res.showCostRate : false;
-        this.showGSZ = res.showGSZ ? res.showGSZ : false;
-        this.BadgeContent = res.BadgeContent ? res.BadgeContent : 1;
-        this.showBadge = res.showBadge ? res.showBadge : 1;
-
-        this.getIndFundData();
-        this.getData();
-        this.checkInterval(true);
-
-        let ver = res.version ? res.version : "1.0.0";
-        if (ver != this.localVersion) {
-          this.changelog();
-        }
+    setTimeout(() => {
+      let aa = window.screen.width;
+      let bb = this.$refs.app.clientWidth;
+      if (aa < bb) {
+        this.zoom = {
+          zoom: aa / bb,
+        };
       }
-    );
+    }, 10);
+    this.init();
   },
   computed: {
     allGains() {
       let allGains = 0;
+      let allNum = 0;
       this.dataList.forEach((val) => {
         allGains += parseFloat(val.gains);
+        allNum += parseFloat(val.amount);
       });
-      allGains = allGains.toFixed(1);
-      return allGains;
+      allGains = allGains.toFixed(2);
+      let allGainsRate = ((allGains * 100) / allNum).toFixed(2);
+      return [allGains, allGainsRate];
     },
     allCostGains() {
       let allCostGains = 0;
+      let allNum = 0;
       this.dataList.forEach((val) => {
         allCostGains += parseFloat(val.costGains);
+        allNum += parseFloat(val.amount);
       });
-      allCostGains = allCostGains.toFixed(1);
-      return allCostGains;
+      allCostGains = allCostGains.toFixed(2);
+      let allCostGainsRate = ((allCostGains * 100) / allNum).toFixed(2);
+      return [allCostGains, allCostGainsRate];
     },
     containerClass() {
       let className = "";
+      if (this.normalFontSize) {
+        className += "normalFontSize ";
+      }
       if (this.darkMode) {
         className += "darkMode ";
       }
@@ -587,6 +699,117 @@ export default {
     },
   },
   methods: {
+    refresh() {
+      this.init();
+      this.isRefresh = true;
+      setTimeout(() => {
+        this.isRefresh = false;
+      }, 1500);
+    },
+    formatTooltip(val) {
+      return val + "%";
+    },
+    changeGrayscaleValue(val) {
+      this.grayscale = {
+        filter: "grayscale(" + val / 100 + ")",
+      };
+      chrome.storage.sync.set({
+        grayscaleValue: this.grayscaleValue,
+      });
+    },
+    changeOpacityValue(val) {
+      this.opacity = {
+        opacity: 1 - val / 100,
+      };
+      chrome.storage.sync.set({
+        opacityValue: this.opacityValue,
+      });
+    },
+    init() {
+      chrome.storage.sync.get(
+        [
+          "RealtimeFundcode",
+          "RealtimeIndcode",
+          "fundListM",
+          "showAmount",
+          "showGains",
+          "fundList",
+          "seciList",
+          "darkMode",
+          "normalFontSize",
+          "isLiveUpdate",
+          "showCost",
+          "showCostRate",
+          "showGSZ",
+          "version",
+          "showBadge",
+          "BadgeContent",
+          "userId",
+          "grayscaleValue",
+          "opacityValue",
+        ],
+        (res) => {
+          this.fundList = res.fundList ? res.fundList : this.fundList;
+          if (res.fundListM) {
+            this.fundListM = res.fundListM;
+          } else {
+            for (const fund of this.fundList) {
+              let val = {
+                code: fund,
+                num: 0,
+              };
+              this.fundListM.push(val);
+            }
+            chrome.storage.sync.set({
+              fundListM: this.fundListM,
+            });
+          }
+          if (res.userId) {
+            this.userId = res.userId;
+          } else {
+            this.userId = this.getGuid();
+            chrome.storage.sync.set({
+              userId: this.userId,
+            });
+          }
+          this.darkMode = res.darkMode ? res.darkMode : false;
+          this.normalFontSize = res.normalFontSize ? res.normalFontSize : false;
+          this.seciList = res.seciList ? res.seciList : this.seciList;
+          this.showAmount = res.showAmount ? res.showAmount : false;
+          this.showGains = res.showGains ? res.showGains : false;
+          this.RealtimeFundcode = res.RealtimeFundcode;
+          this.RealtimeIndcode = res.RealtimeIndcode;
+          this.isLiveUpdate = res.isLiveUpdate ? res.isLiveUpdate : false;
+          this.showCost = res.showCost ? res.showCost : false;
+          this.showCostRate = res.showCostRate ? res.showCostRate : false;
+          this.showGSZ = res.showGSZ ? res.showGSZ : false;
+          this.BadgeContent = res.BadgeContent ? res.BadgeContent : 1;
+          this.showBadge = res.showBadge ? res.showBadge : 1;
+          this.grayscaleValue = res.grayscaleValue ? res.grayscaleValue : 0;
+          this.opacityValue = res.opacityValue ? res.opacityValue : 0;
+          if (this.seciList.length > 0) {
+            this.loadingInd = true;
+          }
+
+          this.grayscale = {
+            filter: "grayscale(" + this.grayscaleValue / 100 + ")",
+          };
+          this.opacity = {
+            opacity: 1 - this.opacityValue / 100,
+          };
+
+          this.isGetStorage = true;
+          this.getIndFundData();
+          this.getData();
+          this.checkInterval(true);
+
+          let ver = res.version ? res.version : "1.0.0";
+          if (ver != this.localVersion) {
+            this.changelog();
+          }
+        }
+      );
+    },
     getGuid() {
       return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(
         c
@@ -596,15 +819,26 @@ export default {
         return v.toString(16);
       });
     },
+    indDetail(val) {
+      // this.sltIndCode = val.f13 + "." + val.f12;
+      this.detailShadow = true;
+      this.$refs.indDetail.init(val);
+    },
     fundDetail(val) {
       this.sltFund = val;
       this.detailShadow = true;
-      this.$refs.charts.init();
+      this.$refs.fundDetail.init();
     },
     closeCharts() {
       this.detailShadow = false;
     },
+    market() {
+      this.detailShadow = true;
+      this.$refs.marketShadow.init();
+    },
     checkInterval(isFirst) {
+      clearInterval(this.myVar);
+      clearInterval(this.myVar1);
       chrome.runtime.sendMessage({ type: "DuringDate" }, (response) => {
         this.isDuringDate = response.farewell;
         if (this.isLiveUpdate && this.isDuringDate) {
@@ -653,6 +887,7 @@ export default {
         this.searchOptions = [];
       }
     },
+
     option() {
       chrome.tabs.create({ url: "/options/options.html" });
     },
@@ -737,24 +972,26 @@ export default {
     getIndFundData() {
       let seciListStr = this.seciList.join(",");
       let url =
-        "https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&fields=f2,f3,f4,f12,f14&secids=" +
+        "https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&fields=f2,f3,f4,f12,f13,f14&secids=" +
         seciListStr +
         "&_=" +
         new Date().getTime();
       this.$axios.get(url).then((res) => {
+        this.loadingInd = false;
         this.indFundData = res.data.data.diff;
       });
     },
     getData() {
       let fundlist = this.fundListM.map((val) => val.code).join(",");
       let url =
-        "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNFInfo?pageIndex=1&pageSize=50&plat=Android&appType=ttjj&product=EFund&Version=1&deviceid=" +
+        "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNFInfo?pageIndex=1&pageSize=200&plat=Android&appType=ttjj&product=EFund&Version=1&deviceid=" +
         this.userId +
         "&Fcodes=" +
         fundlist;
       this.$axios
         .get(url)
         .then((res) => {
+          this.loadingList = false;
           let data = res.data.Datas;
           this.dataList = [];
           let dataList = [];
@@ -849,24 +1086,24 @@ export default {
       });
     },
     calculateMoney(val) {
-      let sum = (val.dwjz * val.num).toFixed(1);
+      let sum = (val.dwjz * val.num).toFixed(2);
       return sum;
     },
     calculate(val, hasReplace) {
       var sum = 0;
       let num = val.num ? val.num : 0;
       if (hasReplace) {
-        sum = ((val.dwjz - val.dwjz / (1 + val.gszzl * 0.01)) * num).toFixed(1);
+        sum = ((val.dwjz - val.dwjz / (1 + val.gszzl * 0.01)) * num).toFixed(2);
       } else {
         if (val.gsz) {
-          sum = ((val.gsz - val.dwjz) * num).toFixed(1);
+          sum = ((val.gsz - val.dwjz) * num).toFixed(2);
         }
       }
       return sum;
     },
     calculateCost(val) {
       if (val.cost) {
-        let sum = ((val.dwjz - val.cost) * val.num).toFixed(1);
+        let sum = ((val.dwjz - val.cost) * val.num).toFixed(2);
         return sum;
       } else {
         return 0;
@@ -899,6 +1136,30 @@ export default {
           chrome.runtime.sendMessage({ type: "refresh" });
         }
       );
+    },
+    sltInd(val) {
+      let code = val.f13 + "." + val.f12;
+      if (code == this.RealtimeIndcode) {
+        chrome.storage.sync.set(
+          {
+            RealtimeIndcode: null,
+          },
+          () => {
+            this.RealtimeIndcode = null;
+            chrome.runtime.sendMessage({ type: "endInterval" });
+          }
+        );
+      } else {
+        chrome.storage.sync.set(
+          {
+            RealtimeIndcode: code,
+          },
+          () => {
+            this.RealtimeIndcode = code;
+            chrome.runtime.sendMessage({ type: "refresh" });
+          }
+        );
+      }
     },
     slt(id) {
       if (id == this.RealtimeFundcode) {
@@ -1043,15 +1304,37 @@ export default {
   overflow-y: auto;
   padding: 10px 7px;
   box-sizing: border-box;
+  position: relative;
   font-size: 12px;
-  font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC",
-    "Hiragino Sans GB", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei",
-    sans-serif;
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
 }
 
-.detail-container {
-  min-height: 450px;
-  min-width: 610px;
+.refresh {
+  position: absolute;
+  right: 10px;
+  width: 18px;
+  bottom: 12px;
+
+  cursor: pointer;
+  i {
+    color: #409eff;
+    font-size: 18px;
+    font-weight: bold;
+  }
+}
+
+.refresh.isRefresh {
+  animation: changDeg 1.5s linear 0s infinite;
+}
+
+@keyframes changDeg {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg);
+  }
 }
 
 .more-height {
@@ -1073,28 +1356,27 @@ export default {
 .table-drag {
   cursor: move;
 }
-.num-all-width {
-  min-width: 520px;
-}
 
-.num-width-1 {
-  min-width: 420px;
-}
-.num-width-2 {
-  min-width: 480px;
-}
-.num-width-3 {
-  min-width: 540px;
-}
-.num-width-4 {
-  min-width: 610px;
-}
-.num-width-5 {
-  min-width: 680px;
+.container {
+  &.num-width-1 {
+    min-width: 420px;
+  }
+  &.num-width-2 {
+    min-width: 480px;
+  }
+  &.num-width-3 {
+    min-width: 540px;
+  }
+  &.num-width-4 {
+    min-width: 610px;
+  }
+  &.num-width-5 {
+    min-width: 680px;
+  }
 }
 
 .table-row {
-  max-height: 435px;
+  max-height: 425px;
   overflow-y: auto;
 }
 
@@ -1113,7 +1395,7 @@ export default {
 }
 
 table {
-  margin: 10px auto 0;
+  margin: 0 auto;
   width: 100%;
   border-collapse: collapse;
   text-align: right;
@@ -1173,16 +1455,19 @@ tbody tr:hover {
 
 .btn.num {
   width: 75px;
+  padding: 3px 6px;
 }
 
 .btn-up {
   color: #f56c6c;
   border-color: #f56c6c;
+  font-weight: bold;
 }
 
 .btn-down {
   color: #4eb61b;
   border-color: #4eb61b;
+  font-weight: bold;
 }
 
 .slt {
@@ -1194,6 +1479,19 @@ tbody tr:hover {
 .input-row {
   text-align: center;
   margin-top: 10px;
+}
+.gear-input-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  .slider-title {
+    font-size: 14px;
+    margin: 0 5px 0 15px;
+  }
+  .slider {
+    display: inline-block;
+    width: 20%;
+  }
 }
 
 .tab-col {
@@ -1219,6 +1517,9 @@ tbody tr:hover {
     border: 1px solid #dcdfe6;
     border-radius: 50%;
   }
+}
+.indFund {
+  cursor: pointer;
 }
 
 .tab-row:after,
@@ -1310,10 +1611,60 @@ tbody tr:hover {
   user-select: none;
 }
 
+//标准字号
+.normalFontSize {
+  min-width: 450px;
+  font-size: 14px;
+  &.num-width-1 {
+    min-width: 500px;
+  }
+  &.num-width-2 {
+    min-width: 580px;
+  }
+  &.num-width-3 {
+    min-width: 630px;
+  }
+  &.num-width-4 {
+    min-width: 690px;
+  }
+  &.num-width-5 {
+    min-width: 750px;
+  }
+
+  .btn,
+  .tips {
+    font-size: 14px;
+  }
+  .tab-col {
+    h5 {
+      font-size: 14px;
+    }
+  }
+}
+
+.detail-container {
+  min-height: 450px;
+  min-width: 610px;
+}
+
+.detailTable {
+  th,
+  td {
+    
+    p {
+      margin: 2px 0;
+      color: rgba($color: #000000, $alpha: 0.6);
+    }
+  }
+}
+
 //暗黑主题
 .container.darkMode {
   color: rgba($color: #ffffff, $alpha: 0.6);
   background-color: #121212;
+  .refresh {
+    color: rgba($color: #409eff, $alpha: 0.6);
+  }
   .btn {
     background-color: rgba($color: #ffffff, $alpha: 0.16);
     color: rgba($color: #ffffff, $alpha: 0.6);
@@ -1332,7 +1683,7 @@ tbody tr:hover {
   }
 
   /deep/ tbody tr:hover {
-    background-color: rgba($color: #ffffff, $alpha: 0.08);
+    background-color: rgba($color: #ffffff, $alpha: 0.12);
   }
 
   .slt {

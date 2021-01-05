@@ -1,12 +1,13 @@
 <template>
   <div
+    class="box"
     v-loading="loading"
     :element-loading-background="
       darkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)'
     "
-    class="main-echarts"
-    ref="mainCharts"
-  ></div>
+  >
+    <div class="main-echarts" ref="mainCharts"></div>
+  </div>
 </template>
 
 <script>
@@ -21,15 +22,11 @@ require("echarts/lib/component/tooltip");
 require("echarts/lib/component/legend");
 
 export default {
-  name: "chatrs",
+  name: "marketLine",
   props: {
     darkMode: {
       type: Boolean,
       default: false,
-    },
-    fund: {
-      type: Object,
-      required: true,
     },
   },
   data() {
@@ -37,10 +34,7 @@ export default {
       chartEL: null,
       myChart: null,
       minVal: null,
-      maxVal: null,
-      interVal: null,
       option: {},
-      DWJZ: 0,
       loading: false,
       timeData: [
         "09:30",
@@ -164,7 +158,6 @@ export default {
         "11:28",
         "11:29",
         "11:30",
-        "13:00",
         "13:01",
         "13:02",
         "13:03",
@@ -288,13 +281,11 @@ export default {
       ],
     };
   },
+
   watch: {},
   computed: {
     defaultColor() {
       return this.darkMode ? "rgba(255,255,255,0.6)" : "#ccc";
-    },
-    defaultLabelColor() {
-      return this.darkMode ? "rgba(255,255,255,0.6)" : "#000";
     },
   },
   mounted() {
@@ -313,22 +304,20 @@ export default {
       this.option = {
         tooltip: {
           trigger: "axis",
-          formatter: (p) => {
-            return `时间：${p[0].name}<br />估算涨跌幅：${
-              p[0].value
-            }%<br />估算净值：${(this.DWJZ * (1 + 0.01 * p[0].value)).toFixed(
-              4
-            )}元`;
-          },
+            // formatter: (p) => {
+            //   return `时间：${p[0].name}<br />${
+            //     this.chartTypeList[this.chartType].name
+            //   }：${p[0].value}`;
+            // },
         },
         grid: {
-          top: 30,
+          top: 55,
           bottom: 30,
+          right:30
         },
         xAxis: {
           type: "category",
           data: this.timeData,
-          position: "bottom",
           axisLabel: {
             formatter: this.fmtAxis,
             interval: this.fmtVal,
@@ -337,138 +326,113 @@ export default {
             onZero: false,
           },
         },
-        yAxis: [
-          {
-            type: "value",
-            axisLabel: {
-              color: this.yAxisLabelColor,
-              formatter: (val) => {
-                return val.toFixed(2) + "%";
-              },
-            },
-            splitLine: {
-              show: true,
-              lineStyle: {
-                type: "dashed",
-                color: this.defaultColor,
-              },
-            },
-            data: [],
+        yAxis: {
+          type: "value",
+          name:"单位：亿元",
+          scale: true,
+          axisLabel: {
+            color: this.defaultColor,
+            
           },
-          {
-            type: "value",
-            axisLabel: {
-              color: this.yAxisLabelColor,
-              formatter: (val) => {
-                return (this.DWJZ * (1 + 0.01 * val)).toFixed(4);
-              },
+          splitLine: {
+            show: true,
+            lineStyle: {
+              type: "dashed",
+              color: this.defaultColor,
             },
-            splitLine: {
-              show: true,
-              lineStyle: {
-                type: "dashed",
-                color: this.defaultColor,
-              },
-            },
-            data: [],
           },
-        ],
+          data: [],
+        },
         series: [
           {
-            name: "估算涨跌幅",
             type: "line",
             data: [],
-            markLine: {
-              silent: true,
-              symbol: "none",
-              animation: false,
-              label: {
-                show: false,
-              },
-              lineStyle: {
-                type: "solid",
-              },
-              data: [
-                {
-                  yAxis: 0,
-                },
-              ],
-            },
-          },
-          {
-            name: "估算净值",
-            type: "line",
-            symbol: "none",
-            data: [],
-            yAxisIndex: 1,
-            lineStyle: {
-              normal: {
-                width: 0,
-              },
-            },
           },
         ],
       };
       this.getData();
     },
 
+    getData() {
+      this.loading = true;
+      let url = `http://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&secid=1.000001&secid2=0.399001&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63&_=${new Date().getTime()}`;
+      this.$axios.get(url).then((res) => {
+        this.loading = false;
+        let dataList = res.data.data.klines;
+        let data1 = [0];
+        let data2 = [0];
+        let data3 = [0];
+        let data4 = [0];
+        let data5 = [0];
+
+        if (dataList) {
+          dataList.forEach((el) => {
+            let arr = el.split(",");
+            data1.push((arr[1]/100000000).toFixed(4));
+            data2.push((arr[2]/100000000).toFixed(4));
+            data3.push((arr[3]/100000000).toFixed(4));
+            data4.push((arr[4]/100000000).toFixed(4));
+            data5.push((arr[5]/100000000).toFixed(4));
+          });
+          this.option.legend = {
+            show: true,
+          };
+
+          this.option.series = [
+            {
+              type: "line",
+              name: "主力净流入",
+              data: data1,
+            },
+            {
+              type: "line",
+              name: "超大单净流入",
+              data: data5,
+            },
+            {
+              type: "line",
+              name: "大单净流入",
+              data: data4,
+            },
+            {
+              type: "line",
+              name: "中单净流入",
+              data: data3,
+            },
+            {
+              type: "line",
+              name: "小单净流入",
+              data: data2,
+            },
+          ];
+          this.myChart.setOption(this.option);
+        }
+      });
+    },
     fmtAxis(val, ind) {
-      if (val == "13:00") {
+      if (val == "11:30") {
         return "11:30/13:00";
       } else {
         return val;
       }
     },
     fmtVal(ind, val) {
-      let arr = ["09:30", "10:30", "13:00", "14:00", "15:00"];
+      let arr = ["09:30", "10:30", "11:30", "14:00", "15:00"];
       if (arr.indexOf(val) != -1) {
         return true;
       } else {
         return false;
       }
     },
-    yAxisLabelColor(val, ind) {
-      return val > 0
-        ? "#f56c6c"
-        : val == 0
-        ? this.defaultLabelColor
-        : "#4eb61b";
-    },
-    handle_num(data) {
-      var _aa = Math.abs(Math.max.apply(null, data)).toFixed(2);
-      var _bb = Math.abs(Math.min.apply(null, data)).toFixed(2);
-      return _aa > _bb ? _aa : _bb;
-    },
-    getData() {
-      this.loading = true;
-      let url = `https://fundmobapi.eastmoney.com/FundMApi/FundVarietieValuationDetail.ashx?FCODE=${
-        this.fund.fundcode
-      }&deviceid=Wap&plat=Wap&product=EFund&version=2.0.0&_=${new Date().getTime()}`;
-      this.$axios.get(url).then((res) => {
-        this.loading = false;
-        let dataList = res.data.Datas.map((item) => item.split(","));
-        this.option.series[0].data = dataList.map((item) =>
-          (+item[2]).toFixed(2)
-        );
-        this.option.series[1].data = dataList.map((item) =>
-          (+item[2]).toFixed(2)
-        );
-        let aa = this.handle_num(this.option.series[0].data);
-        this.DWJZ = res.data.Expansion.DWJZ;
-        this.option.yAxis[0].min = -aa;
-        this.option.yAxis[0].max = aa;
-        this.option.yAxis[0].interval = aa / 4;
-        this.option.yAxis[1].min = -aa;
-        this.option.yAxis[1].max = aa;
-        this.option.yAxis[1].interval = aa / 4;
-        this.myChart.setOption(this.option);
-      });
-    },
   },
 };
 </script>
 
 <style lang="scss" scoped>
+.box {
+  width: 100%;
+  height: 100%;
+}
 .main-echarts {
   width: 100%;
   height: 260px;

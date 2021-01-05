@@ -1,8 +1,100 @@
 {
-    "qrcode": "https://weixin.qq.com/g/AQYAAK7zrxK-xj5Ib6221klVhJVOuOls0WEZ_oLG6oMxOERbtoJ10EXa_Av2MFVz",
+    "qrcode": "https://weixin.qq.com/g/AQYAAGo7iT-UJWwrdEsINkh-RJxV_SAny0eBObcfZ2iLvGA0pT2rfG7b_eqyWAvw",
     "tgGroup": "https://t.me/choose_funds_chat",
     "qqGroup": "951222618",
     "list": [{
+            "version": "2.4.1",
+            "type": 1,
+            "content": [{
+                "type": 1,
+                "content": "修复新版本出现的问题。"
+            }]
+        }, {
+            "version": "2.4.0",
+            "type": 2,
+            "content": [{
+                "type": 2,
+                "content": "增加行情中心，支持查看大盘资金流向、行业版块资金流向。"
+            }, {
+                "type": 2,
+                "content": "基金详情页添加基金概况信息，支持查看基金经理详情。"
+            }, {
+                "type": 2,
+                "content": "编辑页面支持调节页面灰度与透明度。"
+            }, {
+                "type": 1,
+                "content": "页面布局调整，修复历史遗留问题。"
+            }]
+        }, {
+            "version": "2.3.1",
+            "type": 1,
+            "content": [{
+                "type": 1,
+                "content": "修复一个影响性能的定时任务问题。"
+            }]
+        }, {
+            "version": "2.3.0",
+            "type": 2,
+            "content": [{
+                "type": 2,
+                "content": "新增独立窗口模式，右击插件图标，选择进入即可。"
+            }, {
+                "type": 1,
+                "content": "添加手动刷新按钮。"
+            }, {
+                "type": 1,
+                "content": "修复大盘与股票走势图中，鼠标移出时卡死的问题。"
+            }]
+        }, {
+            "version": "2.2.1",
+            "type": 1,
+            "content": [{
+                "type": 1,
+                "content": "解决火狐浏览器手机版更新日志无法点击的问题。"
+            }]
+        }, {
+            "version": "2.2.0",
+            "type": 2,
+            "content": [{
+                "type": 2,
+                "content": "大盘指数支持查看走势图。"
+            }, {
+                "type": 2,
+                "content": "持仓明细中可点击对应股票直接查看走势图。"
+            }, {
+                "type": 1,
+                "content": "页面布局调整，金额小数点位数调整。"
+            }]
+        }, {
+            "version": "2.1.1",
+            "type": 1,
+            "content": [{
+                "type": 1,
+                "content": "持仓明细中可点击对应股票跳转至网站详情。"
+            }, {
+                "type": 1,
+                "content": "合并单位净值与累计净值，详情中增加日增长率。"
+            }, {
+                "type": 1,
+                "content": "页面布局调整。"
+            }]
+        }, {
+            "version": "2.1.0",
+            "type": 2,
+            "content": [{
+                "type": 2,
+                "content": "支持查看基金的持仓明细。"
+            }, {
+                "type": 2,
+                "content": "角标内容支持选择指数。"
+            }, {
+                "type": 1,
+                "content": "走势图支持更多区间选择。"
+            }, {
+                "type": 1,
+                "content": "页面字号新增两档可调节，其他页面布局调整。"
+            }]
+        }, {
             "version": "2.0.9",
             "type": 1,
             "content": [{
